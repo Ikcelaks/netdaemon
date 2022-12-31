@@ -26,6 +26,10 @@ namespace NetDaemon.HassModel.Tests.Entities;
 public class IEntityDomainServiceExtensionsTest
 {
     public IEntityStateMapper<LightAttributes> LightMapper = DefaultEntityStateMappers.TypedAttributes<LightAttributes>();
+
+    public IEntityStateMapper<ZwaveLockAttributes> ZwaveLockMapper = DefaultEntityStateMappers.TypedAttributes<ZwaveLockAttributes>();
+    
+    public IEntityStateMapper<LockAttributes> LockMapper = DefaultEntityStateMappers.TypedAttributes<LockAttributes>();
     
     [Fact]
     public void CanCallDomainServiceOnStateChange()
@@ -61,5 +65,32 @@ public class IEntityDomainServiceExtensionsTest
 
         // Assert
         haContextMock.Verify(h => h.CallService("light", "turn_on_generic", It.Is<ServiceTarget>(t => t.EntityIds!.Single() == target.EntityId), brightness), Times.Once);
+    }
+    
+    [Fact]
+    public void CanSupportMultipleServiceDomainsOnSameEntity()
+    {
+        // Arrange
+        var entityId1 = "lock.zwavelock";
+        var entityId2 = "lock.lock";
+        var haContextMock = new Mock<IHaContext>();
+        var hassStateChangesSubject = new Subject<HassStateChangedEventData>();
+        haContextMock.Setup(h => h.HassStateAllChanges()).Returns(hassStateChangesSubject);
+
+        // Demonstrate usage of global using
+        var target1 = ZwaveLockMapper.Entity(haContextMock.Object, entityId1);
+        var target2 = LockMapper.Entity(haContextMock.Object, entityId2);
+
+        // Act
+        target1.LockLock();
+        target1.ZwaveSetUserCode();
+        target2.LockLock();
+        // Correctly cannot call ZwaveJsSetUserCode on non-Zwave lock
+        // target2.ZwaveSetUserCode();
+
+        // Assert
+        haContextMock.Verify(h => h.CallService("lock", "lock_lock", It.Is<ServiceTarget>(t => t.EntityIds!.Single() == target1.EntityId), "whatever"), Times.Once);
+        haContextMock.Verify(h => h.CallService("zwavejs", "zwavejs_setusercode", It.Is<ServiceTarget>(t => t.EntityIds!.Single() == target1.EntityId), "whatever"), Times.Once);
+        haContextMock.Verify(h => h.CallService("lock", "lock_lock", It.Is<ServiceTarget>(t => t.EntityIds!.Single() == target2.EntityId), "whatever"), Times.Once);
     }
 }

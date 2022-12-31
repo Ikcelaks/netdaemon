@@ -7,6 +7,7 @@ using System.Text.Json.Serialization;
 using System.Threading;
 using NetDaemon.Client.HomeAssistant.Model;
 using NetDaemon.HassModel.Entities;
+using NetDaemon.HassModel.Entities.Core;
 using NetDaemon.HassModel.Tests.TestHelpers;
 using NetDaemon.HassModel.Tests.TestHelpers.HassClient;
 
@@ -79,8 +80,8 @@ public class IEntityTest
         haContextMock.Setup(h => h.HassStateAllChanges()).Returns(hassStateChangesSubject);
 
         var target = mapper.Entity(haContextMock.Object, entityId);
-        var stateChangeObserverMock = new Mock<IObserver<IStateChange<string?, AttributesWithName>>>();
-        var stateAllChangeObserverMock = new Mock<IObserver<IStateChange<string?, AttributesWithName>>>();
+        var stateChangeObserverMock = new Mock<IObserver<IStateChange<AttributesWithName>>>();
+        var stateAllChangeObserverMock = new Mock<IObserver<IStateChange<AttributesWithName>>>();
 
         target.StateAllChanges().Subscribe(stateAllChangeObserverMock.Object);
         target.StateChanges().Subscribe(stateChangeObserverMock.Object);
@@ -117,8 +118,8 @@ public class IEntityTest
                     }
             });
 
-        stateChangeObserverMock.Verify(o => o.OnNext(It.IsAny<IStateChange<string?, AttributesWithName>>()), Times.Once);
-        stateAllChangeObserverMock.Verify(o => o.OnNext(It.IsAny<IStateChange<string?, AttributesWithName>>()), Times.Exactly(2));
+        stateChangeObserverMock.Verify(o => o.OnNext(It.IsAny<IStateChange<AttributesWithName>>()), Times.Once);
+        stateAllChangeObserverMock.Verify(o => o.OnNext(It.IsAny<IStateChange<AttributesWithName>>()), Times.Exactly(2));
     }
 
     [Fact]
@@ -154,33 +155,28 @@ public class IEntityTest
         var baseMapper = DefaultEntityStateMappers.Base;
 
         var entity = baseMapper.Entity(haContextMock.Object, entityId);
-        entity.State.Should().Be("12.3");
-
-        // Act: AsNumeric
-        var numericEntity = entity.AsNumeric();
 
         // Assert
-        numericEntity.State!.Value!.Should().Be(12.3d);
-        numericEntity.EntityState!.State!.Value!.Should().Be(12.3d);
-        numericEntity.StateAllChanges().Where(e => e.New?.State > 1.2);
+        entity.State.Should().Be("12.3");
+        // entity.State.NumericState isn't allowed by the typechecker
 
         // Act: WithNewAttributesAs
-        var numericWithAttributesMapper = DefaultEntityStateMappers.NumericTypedAttributes<TestSensorAttributes>();
-        var withAttributes = numericWithAttributesMapper.Map(numericEntity);
-        withAttributes.StateAllChanges().Where(e => e.New?.State > 1.2 && e.Entity != null);
-        var stateChangeObserverMock = new Mock<IObserver<IStateChange<double?, TestSensorAttributes>>>();
-        var conditionalStateChangeObserverMock = new Mock<IObserver<IStateChange<double?, TestSensorAttributes>>>();
+        var numericWithAttributesMapper = DefaultEntityStateMappers.TypedAttributes<TestSensorAttributes>();
+        var withAttributes = numericWithAttributesMapper.Map(entity);
+        withAttributes.StateAllChanges().Where(e => e.New?.NumericState() > 1.2 && e.Entity != null);
+        var stateChangeObserverMock = new Mock<IObserver<IStateChange<TestSensorAttributes>>>();
+        var conditionalStateChangeObserverMock = new Mock<IObserver<IStateChange<TestSensorAttributes>>>();
 
         // Assert
-        withAttributes.State!.Value!.Should().Be(12.3d);
-        withAttributes.EntityState!.State!.Value!.Should().Be(12.3d);
+        withAttributes.NumericState()!.Value!.Should().Be(12.3d);
+        withAttributes.EntityState!.NumericState()!.Value!.Should().Be(12.3d);
 
         withAttributes.Attributes!.Units.Should().Be("Celcius");
         withAttributes.Attributes!.SetPoint.Should().Be(21.5);
         withAttributes.EntityState!.Attributes!.Units.Should().Be("Celcius");
         withAttributes.EntityState!.Attributes!.SetPoint.Should().Be(21.5);
         withAttributes.StateAllChanges().Subscribe(stateChangeObserverMock.Object);
-        withAttributes.StateAllChanges().Where(e => e.New?.State > 7.2 && e.Entity != null).Subscribe(conditionalStateChangeObserverMock.Object);
+        withAttributes.StateAllChanges().Where(e => e.New?.NumericState() > 7.2 && e.Entity != null).Subscribe(conditionalStateChangeObserverMock.Object);
         hassStateChangesSubject.OnNext(
             new HassStateChangedEventData
             {
@@ -196,8 +192,8 @@ public class IEntityTest
                         State = "21.5"
                     }
             });
-        stateChangeObserverMock.Verify(o => o.OnNext(It.IsAny<IStateChange<double?, TestSensorAttributes>>()), Times.Once);
-        conditionalStateChangeObserverMock.Verify(o => o.OnNext(It.IsAny<IStateChange<double?, TestSensorAttributes>>()), Times.Never);
+        stateChangeObserverMock.Verify(o => o.OnNext(It.IsAny<IStateChange<TestSensorAttributes>>()), Times.Once);
+        conditionalStateChangeObserverMock.Verify(o => o.OnNext(It.IsAny<IStateChange<TestSensorAttributes>>()), Times.Never);
     }
 
     [Fact]
@@ -232,21 +228,21 @@ public class IEntityTest
                 });
 
         // Assert
-        stateChangeObserverMock.Verify(o => o.OnNext(It.Is<IStateChange<double?, Dictionary<string, object>>>
-        (e => e.Entity.State.Equals(3.14) &&
-              e.Old!.State.Equals(1.0) &&
-              e.New!.State.Equals(2.0))), Times.Once);
+        stateChangeObserverMock.Verify(o => o.OnNext(It.Is<IStateChange<NumericBaseAttributes>>
+        (e => e.Entity.NumericState().Equals(3.14) &&
+              e.Old!.NumericState().Equals(1.0) &&
+              e.New!.NumericState().Equals(2.0))), Times.Once);
         stateChangeObserverMock.VerifyNoOtherCalls();
 
-        stateAllChangeObserverMock.Verify(o => o.OnNext(It.Is<IStateChange<double?, Dictionary<string, object>>>
-        (e => e.Entity.State.Equals(3.14) &&
-              e.Old!.State.Equals(1.0) &&
-              e.New!.State.Equals(2.0))), Times.Once);
+        stateAllChangeObserverMock.Verify(o => o.OnNext(It.Is<IStateChange<NumericBaseAttributes>>
+        (e => e.Entity.NumericState().Equals(3.14) &&
+              e.Old!.NumericState().Equals(1.0) &&
+              e.New!.NumericState().Equals(2.0))), Times.Once);
 
-        stateAllChangeObserverMock.Verify(o => o.OnNext(It.Is<IStateChange<double?, Dictionary<string, object>>>
-        (e => e.Entity.State.Equals(3.14) &&
-              e.Old!.State.Equals(1.0) &&
-              e.New!.State.Equals(1.0))), Times.Once);
+        stateAllChangeObserverMock.Verify(o => o.OnNext(It.Is<IStateChange<NumericBaseAttributes>>
+        (e => e.Entity.NumericState().Equals(3.14) &&
+              e.Old!.NumericState().Equals(1.0) &&
+              e.New!.NumericState().Equals(1.0))), Times.Once);
         stateAllChangeObserverMock.VerifyNoOtherCalls();
     }
 
@@ -260,18 +256,18 @@ public class IEntityTest
         var haContextMock = new HaContextMock();
         haContextMock.Setup(m => m.GetHassState(entityId)).Returns(new HassState { EntityId = entityId, State = "12.5" });
 
-        var entity = new EntityGenericFactory(haContextMock.Object).CreateIEntity(entityId, DefaultEntityStateMappers.Base);
+        var numericEntity = DefaultEntityStateMappers.NumericBase.Entity(haContextMock.Object, entityId);
 
-        var numericEntity = entity.AsNumeric();
-        numericEntity.State.Should().Be(12.5);
-        numericEntity.EntityState!.State.Should().Be(12.5);
+        numericEntity.NumericState().Should().Be(12.5);
+        numericEntity.EntityState!.NumericState().Should().Be(12.5);
 
-        var withAttributesAs = entity.MappedBy(DefaultEntityStateMappers.NumericTypedAttributes<TestSensorAttributes>());
-        withAttributesAs.State.Should().Be(12.5);
-        withAttributesAs.EntityState!.State.Should().Be(12.5);
+        var withAttributesAs = numericEntity.MappedBy(DefaultEntityStateMappers.TypedAttributes<TestSensorAttributes>());
+        withAttributesAs.NumericState().Should().Be(12.5);
+        withAttributesAs.EntityState!.NumericState().Should().Be(12.5);
     }
 
     // Attribute records
     public record AttributesWithName([property:JsonPropertyName("name")]string? Name);
-    public record TestSensorAttributes([property:JsonPropertyName("set_point")]double? SetPoint, [property:JsonPropertyName("units")]string? Units);
+    public record TestSensorAttributes([property:JsonPropertyName("set_point")]double? SetPoint, [property:JsonPropertyName("units")]string? Units)
+        : INumericState;
 }

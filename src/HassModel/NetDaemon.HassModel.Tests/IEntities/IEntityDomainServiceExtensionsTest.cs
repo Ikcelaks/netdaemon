@@ -8,6 +8,8 @@ using System.Text.Json.Serialization;
 using System.Threading;
 using NetDaemon.Client.HomeAssistant.Model;
 using NetDaemon.HassModel.Entities;
+using NetDaemon.HassModel.Entities.Core;
+using NetDaemon.HassModel.Internal;
 using NetDaemon.HassModel.Tests.TestHelpers;
 using NetDaemon.HassModel.Tests.TestHelpers.HassClient;
 
@@ -20,21 +22,10 @@ namespace NetDaemon.HassModel.Tests.Entities;
 // days as my time frees up.
 //
 // The basic idea for the code generator is to create extension methods on Attributes type. I believe that this is very similar to the current behavior.
-public record LightAttributes([property:JsonPropertyName("brightness")]double? Brightness);
-
-public static class LightServiceExtensions
-{
-    public static void TurnOn<TState>(this IEntity<TState, LightAttributes> light, double? brightness = null) => light.CallService("turn_on_generic", brightness);
-
-    // TestLightEntity is defined in ./GlobalIEntityUsing.cs with 
-    // `global using TestLightEntity = NetDaemon.HassModel.Entities.IEntity<string?, NetDaemon.HassModel.Tests.Entities.LightAttributes>;
-    public static void TurnOn(this TestLightEntity light, double? brightness, bool extra) => light.CallService("turn_on_testlightentity", brightness + (extra ? 10d : 0d));
-}
 
 public class IEntityDomainServiceExtensionsTest
 {
-    public IEntityStateMapper<double?, LightAttributes> DoubleLightMapper = DefaultEntityStateMappers.NumericTypedAttributes<LightAttributes>();
-    public IEntityStateMapper<string?, LightAttributes> LightMapper = DefaultEntityStateMappers.TypedAttributes<LightAttributes>();
+    public IEntityStateMapper<LightAttributes> LightMapper = DefaultEntityStateMappers.TypedAttributes<LightAttributes>();
     
     [Fact]
     public void CanCallDomainServiceOnStateChange()
@@ -45,14 +36,12 @@ public class IEntityDomainServiceExtensionsTest
         var hassStateChangesSubject = new Subject<HassStateChangedEventData>();
         haContextMock.Setup(h => h.HassStateAllChanges()).Returns(hassStateChangesSubject);
 
-        var target1 = LightMapper.Entity(haContextMock.Object, entityId);
-        var target2 = DoubleLightMapper.Entity(haContextMock.Object, entityId);
+        // Demonstrate usage of global using
+        TestLightEntity target = LightMapper.Entity(haContextMock.Object, entityId);
         var brightness = 50d;
 
         // Act
-        target1.StateChanges().Subscribe(e => e.Entity.TurnOn(brightness: brightness)); // Uses the generic extension method, because of the parameter set
-        target1.StateChanges().Subscribe(e => e.Entity.TurnOn(brightness: brightness, true));   // Uses the TestLightEntity specific extension method
-        target2.StateChanges().Subscribe(e => e.Entity.TurnOn(brightness: brightness)); // Uses the generic extension method
+        target.StateChanges().Subscribe(e => e.Entity.TurnOn(brightness: brightness)); // Uses the generic extension method, because of the parameter set
 
         hassStateChangesSubject.OnNext(
             new HassStateChangedEventData
@@ -71,7 +60,6 @@ public class IEntityDomainServiceExtensionsTest
             });
 
         // Assert
-        haContextMock.Verify(h => h.CallService("light", "turn_on_generic", It.Is<ServiceTarget>(t => t.EntityIds!.Single() == target1.EntityId), brightness), Times.Exactly(2));
-        haContextMock.Verify(h => h.CallService("light", "turn_on_testlightentity", It.Is<ServiceTarget>(t => t.EntityIds!.Single() == target1.EntityId), brightness + 10d), Times.Once);
+        haContextMock.Verify(h => h.CallService("light", "turn_on_generic", It.Is<ServiceTarget>(t => t.EntityIds!.Single() == target.EntityId), brightness), Times.Once);
     }
 }

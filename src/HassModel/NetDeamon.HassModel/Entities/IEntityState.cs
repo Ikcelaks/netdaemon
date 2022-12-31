@@ -5,7 +5,7 @@ namespace NetDaemon.HassModel.Entities;
 /// </summary>
 /// <typeparam name="TState">Type of the State property</typeparam>
 /// <typeparam name="TAttributes">Type of the Attributes property</typeparam>
-public interface IEntityState<TState, TAttributes>
+public interface IEntityState<TAttributes>
     where TAttributes : class
 {
     /// <summary>
@@ -18,7 +18,7 @@ public interface IEntityState<TState, TAttributes>
     /// The raw state of the entity as the original nullable string
     /// </summary>
     /// <value></value>
-    string? RawState { get; }
+    string? State { get; }
 
     /// <summary>
     /// The raw attributes as the original JSON
@@ -43,11 +43,6 @@ public interface IEntityState<TState, TAttributes>
     /// </summary>
     /// <value></value>
     Context? Context { get; }
-    /// <summary>
-    /// The state of the entity as the type TState
-    /// </summary>
-    /// <value></value>
-    TState State { get; }
 
     /// <summary>
     /// The attributes of the entity as the class TAttributes (possibly null)

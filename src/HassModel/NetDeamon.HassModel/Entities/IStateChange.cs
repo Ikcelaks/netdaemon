@@ -5,24 +5,24 @@ namespace NetDaemon.HassModel.Entities;
 /// </summary>
 /// <typeparam name="TState"></typeparam>
 /// <typeparam name="TAttributes"></typeparam>
-public interface IStateChange<TState, TAttributes>
+public interface IStateChange<TAttributes>
     where TAttributes : class
 {
     /// <summary>
     /// The strongly typed entity object
     /// </summary>
     /// <value></value>
-    IEntity<TState, TAttributes> Entity { get; }
+    IEntity<TAttributes> Entity { get; }
 
     /// <summary>
     /// The strongly typed old state
     /// </summary>
     /// <value></value>
-    IEntityState<TState, TAttributes>? Old { get; }
+    IEntityState<TAttributes>? Old { get; }
 
     /// <summary>
     /// The strongly typed new state
     /// </summary>
     /// <value></value>
-    IEntityState<TState, TAttributes>? New { get; }
+    IEntityState<TAttributes>? New { get; }
 }

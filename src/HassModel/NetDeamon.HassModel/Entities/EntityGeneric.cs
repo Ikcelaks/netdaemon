@@ -1,7 +1,7 @@
 namespace NetDaemon.HassModel.Entities;
 
 /// <inheritdoc/>
-public sealed record EntityGeneric<TState, TAttributes> : IEntity<TState, TAttributes>
+public sealed record EntityGeneric<TAttributes> : IEntity<TAttributes>
     where TAttributes : class
 {
     /// <inheritdoc/>
@@ -10,32 +10,31 @@ public sealed record EntityGeneric<TState, TAttributes> : IEntity<TState, TAttri
     /// <inheritdoc/>
     public string EntityId { get; }
 
-    /// <inheritdoc/>
-    public IEntityStateMapper<TState, TAttributes> EntityStateMapper { get; }
+    public IEntityStateMapper<TAttributes> EntityStateMapper { get; }
 
-    internal EntityGeneric(IHaContext haContext, string entityId, IEntityStateMapper<TState, TAttributes> mapper)
+    internal EntityGeneric(IHaContext haContext, string entityId, IEntityStateMapper<TAttributes> entityStateMapper)
     {
         HaContext = haContext;
         EntityId = entityId;
-        EntityStateMapper = mapper;
+        EntityStateMapper = entityStateMapper;
     }
 
     /// <inheritdoc/>
-    public IEntityState<TState, TAttributes>? EntityState => EntityStateMapper.MapHassState(HaContext.GetHassState(EntityId));
+    public IEntityState<TAttributes>? EntityState => EntityStateMapper.MapHassState(HaContext.GetHassState(EntityId));
 
     /// <inheritdoc/>
-    public TState State => EntityState is null ? EntityStateMapper.ParseState(null) : EntityState.State;
+    public string? State => EntityState?.State;
 
     /// <inheritdoc/>
     public TAttributes? Attributes => EntityState is null ? EntityStateMapper.ParseAttributes(null) : EntityState.Attributes;
 
     /// <inheritdoc/>
-    public IObservable<IStateChange<TState, TAttributes>> StateAllChanges() =>
+    public IObservable<IStateChange<TAttributes>> StateAllChanges() =>
         HaContext.HassStateAllChanges().Select(e => EntityStateMapper.MapHassStateChange(HaContext, e)).Where(e => e.Entity.EntityId == EntityId);
 
     /// <inheritdoc/>
-    public IObservable<IStateChange<TState, TAttributes>> StateChanges() =>
-        StateAllChanges().Where(c => c.New?.RawState != c.Old?.RawState);
+    public IObservable<IStateChange<TAttributes>> StateChanges() =>
+        StateAllChanges().Where(c => c.New?.State != c.Old?.State);
 
     /// <inheritdoc/>
     public void CallService(string service, object? data = null)

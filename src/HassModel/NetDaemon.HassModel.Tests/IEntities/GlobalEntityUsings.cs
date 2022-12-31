@@ -1,1 +1,1 @@
-global using TestLightEntity = NetDaemon.HassModel.Entities.IEntity<string?, NetDaemon.HassModel.Tests.Entities.LightAttributes>;
+global using TestLightEntity = NetDaemon.HassModel.Entities.IEntity<NetDaemon.HassModel.Tests.Entities.LightAttributes>;

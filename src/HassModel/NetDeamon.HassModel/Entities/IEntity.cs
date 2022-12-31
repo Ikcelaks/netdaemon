@@ -1,7 +1,7 @@
 namespace NetDaemon.HassModel.Entities;
 
 /// <summary>Represents a Home Assistant entity with its state, changes and services</summary>
-public interface IEntity<TState, TAttributes>
+public interface IEntity<TAttributes>
     where TAttributes : class
 {
     /// <summary>
@@ -14,38 +14,35 @@ public interface IEntity<TState, TAttributes>
     /// </summary>
     string EntityId { get; }
 
+    IEntityStateMapper<TAttributes> EntityStateMapper { get; }
+
     /// <summary>
     /// Calls a service using this entity as the target
     /// </summary>
     /// <param name="service">Name of the service to call. If the Domain of the service is the same as the domain of the Entity it can be omitted</param>
     /// <param name="data">Data to provide</param>
     void CallService(string service, object? data = null);
+
     /// <summary>
     /// The full state of this Entity
     /// </summary>
-    IEntityState<TState, TAttributes>? EntityState { get; }
+    IEntityState<TAttributes>? EntityState { get; }
     
     /// <summary>The current state of this Entity</summary>
-    TState State { get; }
+    string? State { get; }
 
     /// <summary>
     /// The current Attributes of this Entity
     /// </summary>
     TAttributes? Attributes { get; }
-
-    /// <summary>
-    /// The mapper from the raw state and attributes to the strong types
-    /// </summary>
-    /// <value></value>
-    IEntityStateMapper<TState, TAttributes> EntityStateMapper { get; }
     
     /// <summary>
     /// Observable, All state changes including attributes
     /// </summary>
-    IObservable<IStateChange<TState, TAttributes>> StateAllChanges();
+    IObservable<IStateChange<TAttributes>> StateAllChanges();
 
     /// <summary>
     /// Observable, All state changes. New.State!=Old.State
     /// </summary>
-    IObservable<IStateChange<TState, TAttributes>> StateChanges();
+    IObservable<IStateChange<TAttributes>> StateChanges();
 }

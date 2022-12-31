@@ -1,10 +1,10 @@
 namespace NetDaemon.HassModel.Entities;
 
 /// <inheritdoc/>
-public sealed record StateChangeGeneric<TState, TAttributes>
+public sealed record StateChangeGeneric<TAttributes>
 (
-    IEntity<TState, TAttributes> Entity,
-    IEntityState<TState, TAttributes>? Old,
-    IEntityState<TState, TAttributes>? New
-) : IStateChange<TState, TAttributes>
+    IEntity<TAttributes> Entity,
+    IEntityState<TAttributes>? Old,
+    IEntityState<TAttributes>? New
+) : IStateChange<TAttributes>
     where TAttributes : class;
